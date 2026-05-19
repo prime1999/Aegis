@@ -1,4 +1,4 @@
-import { Bell, PanelRight } from "lucide-react";
+import { Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -31,16 +31,6 @@ export function Navbar() {
             <Bell className="h-4 w-4" />
           </Button>
         </div>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="absolute right-0 top-1/2 h-10 w-10 -translate-y-1/2 translate-x-1/2 rounded-full border border-border-default bg-bg-surface text-text-secondary shadow-sm hover:bg-bg-elevated hover:text-text-primary sm:block lg:hidden"
-          aria-label="Open right panel"
-        >
-          <PanelRight className="h-4 w-4" />
-        </Button>
       </div>
     </header>
   );
