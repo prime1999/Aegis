@@ -1,6 +1,7 @@
 import { Bell } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { WalletButton } from "./wallet-button";
 
 export function Navbar() {
   return (
@@ -13,13 +14,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 rounded-2xl bg-text-primary px-4 text-sm font-medium text-bg-elevated shadow-sm cursor-pointer duration-500 hover:bg-text-primary/90"
-          >
-            Connect Wallet
-          </Button>
+          <WalletButton />
 
           <Button
             type="button"

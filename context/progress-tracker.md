@@ -24,7 +24,7 @@ change.
 
 ## In Progress
 
-- None
+- Wallet connection system (Mantle Sepolia connection, popover UI, address encoding)
 
 ## Next Up
 
