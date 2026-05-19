@@ -8,22 +8,25 @@ interface UseLoginReturn {
   isConnected: boolean;
   isLoading: boolean;
   error: string | null;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 /**
- * Hook for basic wallet connection
- * SIWE authentication will be implemented later
+ * Consolidated SIWE hook
+ * Returns `login` and `logout` placeholders for future SIWE integration.
  */
 export function useSiweLogin(): UseLoginReturn {
   const { address, isConnected } = useAccount();
 
   const login = useCallback(async () => {
-    // Wallet connection happens through wagmi's useAccount
-    // SIWE signing will be implemented later
+    // Placeholder: SIWE signing will be implemented later
+    return;
   }, []);
 
   const logout = useCallback(async () => {
-    // Logout functionality will be implemented with SIWE
+    // Placeholder: SIWE logout will be implemented later
+    return;
   }, []);
 
   return {
@@ -31,5 +34,7 @@ export function useSiweLogin(): UseLoginReturn {
     isConnected,
     isLoading: false,
     error: null,
+    login,
+    logout,
   };
 }

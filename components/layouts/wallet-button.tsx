@@ -7,6 +7,7 @@ import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 
 import { Button } from "@/components/ui/button";
 import { encodeWalletAddress } from "@/lib/helperfunctions";
+import { useSiweLogin } from "@/hooks/useSiweLogin";
 import { mantleTestnet } from "@/lib/wagmi/chains";
 
 export function WalletButton() {
@@ -116,6 +117,20 @@ export function WalletButton() {
     }
   }, [disconnectAsync]);
 
+  const { login: siweLogin } = useSiweLogin();
+
+  const handleSignIn = useCallback(async () => {
+    setIsBusy(true);
+    try {
+      await siweLogin();
+      setIsPopoverOpen(false);
+    } catch (err) {
+      console.error("SIWE sign-in error:", err);
+    } finally {
+      setIsBusy(false);
+    }
+  }, [siweLogin]);
+
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       if (!menuRef.current) {
@@ -181,6 +196,16 @@ export function WalletButton() {
           </div>
 
           <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              onClick={handleSignIn}
+              disabled={isBusy}
+              variant="outline"
+              className="w-full justify-start gap-2 rounded-2xl border-border-default/80 cursor-pointer"
+            >
+              Sign in
+            </Button>
+
             <Button
               type="button"
               onClick={switchWallet}
