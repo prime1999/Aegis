@@ -126,9 +126,9 @@ export function WalletButton() {
     setIsBusy(true);
 
     try {
-      // Call logout endpoint then clear auth user cache
+      // Call logout endpoint then invalidate auth cache
       await fetch("/api/auth/logout", { method: "POST" });
-      queryClient.setQueryData(["auth", "user"], null);
+      await queryClient.invalidateQueries({ queryKey: ["auth"] });
       setIsPopoverOpen(false);
     } catch (error) {
       console.error("Logout error:", error);
