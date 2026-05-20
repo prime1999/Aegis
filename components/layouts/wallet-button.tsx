@@ -5,16 +5,22 @@ import { LogOut, Repeat2 } from "lucide-react";
 import { toHex } from "viem";
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 
+import { SignInDialog } from "@/components/auth/sign-in-dialog";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuthUser";
 import { encodeWalletAddress } from "@/lib/helperfunctions";
 import { mantleTestnet } from "@/lib/wagmi/chains";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function WalletButton() {
   const { address, isConnected } = useAccount();
   const { connectAsync, connectors } = useConnect();
   const { disconnectAsync } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
+  const { data: user } = useAuth();
+  const queryClient = useQueryClient();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -116,6 +122,21 @@ export function WalletButton() {
     }
   }, [disconnectAsync]);
 
+  const handleLogout = useCallback(async () => {
+    setIsBusy(true);
+
+    try {
+      // Call logout endpoint then clear auth user cache
+      await fetch("/api/auth/logout", { method: "POST" });
+      queryClient.setQueryData(["auth", "user"], null);
+      setIsPopoverOpen(false);
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setIsBusy(false);
+    }
+  }, [queryClient]);
+
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       if (!menuRef.current) {
@@ -159,12 +180,14 @@ export function WalletButton() {
 
   return (
     <div ref={menuRef} className="relative">
+      <SignInDialog open={isSignInOpen} onOpenChange={setIsSignInOpen} />
+
       <Button
         type="button"
         onClick={() => setIsPopoverOpen((current) => !current)}
         aria-haspopup="menu"
         aria-expanded={isPopoverOpen}
-        className="h-10 max-w-[11rem] rounded-2xl bg-text-primary px-4 text-sm font-medium text-bg-elevated shadow-sm cursor-pointer duration-500 hover:bg-text-primary/90"
+        className="h-10 max-w-44 rounded-2xl bg-text-primary px-4 text-sm font-medium text-bg-elevated shadow-sm cursor-pointer duration-500 hover:bg-text-primary/90"
       >
         <span className="truncate">{buttonLabel}</span>
       </Button>
@@ -181,6 +204,31 @@ export function WalletButton() {
           </div>
 
           <div className="flex flex-col gap-2">
+            {!user ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsPopoverOpen(false);
+                  setIsSignInOpen(true);
+                }}
+                className="w-full justify-start gap-2 rounded-2xl border-border-default/80 cursor-pointer"
+              >
+                Sign in
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                disabled={isBusy}
+                onClick={handleLogout}
+                variant="outline"
+                className="w-full justify-start gap-2 rounded-2xl border-border-default/80 cursor-pointer text-red-500 hover:text-red-600"
+              >
+                <LogOut className="h-4 w-4" />
+                Log Out
+              </Button>
+            )}
+
             <Button
               type="button"
               onClick={switchWallet}
