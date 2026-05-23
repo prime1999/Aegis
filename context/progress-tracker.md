@@ -27,13 +27,15 @@ change.
 - React Query `auth` cache now refreshes immediately after SIWE login
 - Removed SIWE auth flow files and routes: `lib/siwe/*`, `hooks/useSiweLogin.ts`, `components/auth/sign-in-dialog.tsx`, `/api/auth/nonce`, `/api/auth/verify`
 - Removed `siwe` dependency from `package.json`
-- Added `lib/alchemy.ts` with a Mantle Sepolia Alchemy client and wallet scan categories
+- Added `lib/alchemy.ts` with an Ethereum Sepolia Alchemy client and wallet scan categories
 - Added `POST /api/wallet/scan` to validate the Supabase session, confirm the connected wallet, scan the last 90 days of `external`, `erc20`, and `erc721` activity, and log the result
 - Wired the scan action to the bottom-nav scan icon and removed the hidden homepage scan trigger
+- Switched the wallet scan indexer from manual log scanning to Alchemy transfer API pagination via `alchemy_getAssetTransfers`
+- Added retry/backoff around Supabase `auth.getUser` in the wallet scan route
 
 ## In Progress
 
-- Wallet connection system (Mantle Sepolia connection, popover UI, address encoding)
+- Wallet connection system (Ethereum Sepolia connection, popover UI, address encoding)
 - Authentication workflow — Supabase Web3 sign-in integration:
   - Read `lib/supabase/config.toml` and keep Supabase sign-in with Web3 enabled.
   - On successful Web3 sign-in, get the session and update the UI immediately.

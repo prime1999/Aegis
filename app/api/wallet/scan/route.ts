@@ -4,8 +4,8 @@ export const runtime = "nodejs";
 
 import {
   fetchBlockByNumberViaRPC,
+  fetchAllAssetTransfersViaRPC,
   fetchLatestBlockNumberViaRPC,
-  fetchTransfersViaRPC,
   walletScanCategories,
   walletScanLookbackDays,
   type WalletScanTransfer,
@@ -24,29 +24,6 @@ function getAuthenticatedWalletAddressFromEmail(email?: string | null) {
   const normalized = normalizeWalletAddress(email || "");
   if (!normalized.includes("@")) return "";
   return normalized.split("@")[0] || "";
-}
-
-const transferTopic =
-  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-
-function toHexBlockNumber(blockNumber: number) {
-  return `0x${blockNumber.toString(16)}`;
-}
-
-function normalizeRpcAddress(value?: string | null) {
-  return value?.trim().toLowerCase() || "";
-}
-
-function padAddressTopic(address: string) {
-  return `0x${normalizeRpcAddress(address).replace(/^0x/, "").padStart(64, "0")}`;
-}
-
-function topicToAddress(topic?: string | null) {
-  if (!topic) {
-    return "";
-  }
-
-  return `0x${topic.slice(-40)}`.toLowerCase();
 }
 
 async function findBlockByTimestamp(cutoffTime: number) {
@@ -68,195 +45,85 @@ async function findBlockByTimestamp(cutoffTime: number) {
   return low;
 }
 
-async function getBlockTimestamp(
-  blockNumber: number,
-  cache: Map<number, string>,
-) {
-  const cached = cache.get(blockNumber);
-
-  if (cached) {
-    return cached;
-  }
-
-  const block = await fetchBlockByNumberViaRPC(blockNumber);
-  const timestamp = new Date(
-    Number.parseInt(block.timestamp, 16) * 1000,
-  ).toISOString();
-
-  cache.set(blockNumber, timestamp);
-  return timestamp;
-}
-
-// async function scanExternalTransfers({
-//   walletAddress,
-//   fromBlock,
-//   toBlock,
-//   timestampCache,
-// }: {
-//   walletAddress: string;
-//   fromBlock: number;
-//   toBlock: number;
-//   timestampCache: Map<number, string>;
-// }) {
-//   const normalizedWalletAddress = normalizeRpcAddress(walletAddress);
-//   const transfers: WalletScanTransfer[] = [];
-
-//   for (let blockNumber = fromBlock; blockNumber <= toBlock; blockNumber += 1) {
-//     const block = await fetchBlockByNumberViaRPC(blockNumber);
-//     const cachedTimestamp = timestampCache.get(blockNumber);
-//     const blockTimestamp = cachedTimestamp
-//       ? cachedTimestamp
-//       : new Date(Number.parseInt(block.timestamp, 16) * 1000).toISOString();
-
-//     timestampCache.set(blockNumber, blockTimestamp);
-//     const blockHex = toHexBlockNumber(blockNumber);
-
-//     for (const transaction of block.transactions) {
-//       const from = normalizeRpcAddress(transaction.from);
-//       const to = normalizeRpcAddress(transaction.to);
-
-//       if (from !== normalizedWalletAddress && to !== normalizedWalletAddress) {
-//         continue;
-//       }
-
-//       transfers.push({
-//         uniqueId: `${transaction.hash}:external:${blockHex}`,
-//         category: "external",
-//         direction: from === normalizedWalletAddress ? "outgoing" : "incoming",
-//         blockNumber: blockHex,
-//         blockTimestamp,
-//         txHash: transaction.hash,
-//         from: transaction.from,
-//         to: transaction.to,
-//         value: transaction.value,
-//       });
-//     }
-//   }
-
-//   return transfers;
-// }
-
-async function scanTokenTransfers({
-  walletAddress,
-  fromBlock,
-  toBlock,
-  category,
-  timestampCache,
-}: {
-  walletAddress: string;
-  fromBlock: number;
-  toBlock: number;
-  category: "erc20" | "erc721";
-  timestampCache: Map<number, string>;
-}) {
-  const normalizedWalletAddress = normalizeRpcAddress(walletAddress);
-  const walletTopic = padAddressTopic(normalizedWalletAddress);
-  const transfers: WalletScanTransfer[] = [];
-
-  const CHUNK_SIZE = Number(process.env.ALCHEMY_GETLOGS_MAX_BLOCK_RANGE || 5);
-  const CHUNK_DELAY_MS = Number(process.env.ALCHEMY_CHUNK_DELAY_MS || 1000);
-
-  for (
-    let chunkStart = fromBlock;
-    chunkStart <= toBlock;
-    chunkStart += CHUNK_SIZE
-  ) {
-    const chunkEnd = Math.min(chunkStart + CHUNK_SIZE - 1, toBlock);
-    const [outgoingLogs, incomingLogs] = await Promise.all([
-      fetchTransfersViaRPC({
-        fromBlock: toHexBlockNumber(chunkStart),
-        toBlock: toHexBlockNumber(chunkEnd),
-        topics: [transferTopic, walletTopic],
-      }),
-      fetchTransfersViaRPC({
-        fromBlock: toHexBlockNumber(chunkStart),
-        toBlock: toHexBlockNumber(chunkEnd),
-        topics: [transferTopic, null, walletTopic],
-      }),
-    ]);
-
-    for (const log of [...outgoingLogs, ...incomingLogs]) {
-      const isErc721 = log.data === "0x";
-      const resolvedCategory = isErc721 ? "erc721" : "erc20";
-
-      if (resolvedCategory !== category) {
-        continue;
-      }
-
-      const blockNumber = Number.parseInt(log.blockNumber, 16);
-      const blockTimestamp = await getBlockTimestamp(
-        blockNumber,
-        timestampCache,
-      );
-      const direction =
-        log.topics[1]?.toLowerCase() === walletTopic.toLowerCase()
-          ? "outgoing"
-          : "incoming";
-
-      transfers.push({
-        uniqueId: `${log.transactionHash}:${log.logIndex}`,
-        category: resolvedCategory,
-        direction,
-        blockNumber: log.blockNumber,
-        blockTimestamp,
-        txHash: log.transactionHash,
-        from:
-          direction === "outgoing"
-            ? normalizedWalletAddress
-            : topicToAddress(log.topics[1]),
-        to:
-          direction === "outgoing"
-            ? topicToAddress(log.topics[2])
-            : normalizedWalletAddress,
-        contractAddress: log.address,
-        tokenId: isErc721 ? log.topics[3] : undefined,
-        value: isErc721 ? undefined : log.data,
-      });
-    }
-    // rate-limit-friendly pause between chunks
-    await new Promise((r) => setTimeout(r, CHUNK_DELAY_MS));
-  }
-
-  return transfers;
-}
-
 async function scanWalletTransfers(walletAddress: string) {
   const toBlock = await fetchLatestBlockNumberViaRPC();
 
-  const BLOCK_LOOKBACK = 500; // adjust (200–1000 is fine for dev)
+  // Time-based lookback using `walletScanLookbackDays` to find the earliest
+  // block we should scan. This is more robust than a fixed block-count
+  // subtraction because block times vary across chains.
+  const cutoffTime = Date.now() - walletScanLookbackDays * 24 * 60 * 60 * 1000;
+  const fromBlock = await findBlockByTimestamp(cutoffTime);
 
-  const fromBlock = Math.max(toBlock - BLOCK_LOOKBACK, 0);
+  console.log({ fromBlock, toBlock, cutoffTime });
+  console.log("========== WALLET SCAN START ==========");
+  console.log("[SCAN] wallet:", walletAddress);
+  console.log("[SCAN] toBlock:", toBlock);
+  console.log("[SCAN] fromBlock:", fromBlock);
+  console.log("[SCAN] estimated blocks:", toBlock - fromBlock);
+  console.log("========================================");
 
-  const timestampCache = new Map<number, string>();
-  console.log({ fromBlock, toBlock, timestampCache });
-  const [erc20Transfers, erc721Transfers] = await Promise.all([
-    // scanExternalTransfers({
-    //   walletAddress,
-    //   fromBlock,
-    //   toBlock,
-    //   timestampCache,
-    // }),
-    scanTokenTransfers({
-      walletAddress,
+  const normalizedWalletAddress = normalizeWalletAddress(walletAddress);
+
+  const mapTransfer = (transfer: {
+    uniqueId: string;
+    category: (typeof walletScanCategories)[number];
+    blockNum: string;
+    from: string;
+    to: string | null;
+    value: number | null;
+    erc721TokenId: string | null;
+    tokenId: string | null;
+    asset: string | null;
+    hash: string;
+    rawContract: { address: string };
+    metadata?: { blockTimestamp: string };
+  }): WalletScanTransfer => ({
+    uniqueId: transfer.uniqueId,
+    category: transfer.category,
+    direction:
+      normalizeWalletAddress(transfer.from) === normalizedWalletAddress
+        ? "outgoing"
+        : "incoming",
+    blockNumber: transfer.blockNum,
+    blockTimestamp:
+      transfer.metadata?.blockTimestamp || new Date().toISOString(),
+    txHash: transfer.hash,
+    from: transfer.from,
+    to: transfer.to,
+    contractAddress: transfer.rawContract.address || undefined,
+    tokenId: transfer.erc721TokenId || transfer.tokenId || undefined,
+    value: transfer.value === null ? undefined : String(transfer.value),
+  });
+
+  const [incomingTransfers, outgoingTransfers] = await Promise.all([
+    fetchAllAssetTransfersViaRPC({
       fromBlock,
       toBlock,
-      category: "erc20",
-      timestampCache,
+      toAddress: normalizedWalletAddress,
+      categories: walletScanCategories,
+      pageSize: 1000,
+      withMetadata: true,
     }),
-    scanTokenTransfers({
-      walletAddress,
+    fetchAllAssetTransfersViaRPC({
       fromBlock,
       toBlock,
-      category: "erc721",
-      timestampCache,
+      fromAddress: normalizedWalletAddress,
+      categories: walletScanCategories,
+      pageSize: 1000,
+      withMetadata: true,
     }),
   ]);
-  console.log({ erc20Transfers, erc721Transfers });
+
+  console.log({
+    incomingCount: incomingTransfers.length,
+    outgoingCount: outgoingTransfers.length,
+  });
+
   return Array.from(
     new Map(
-      [...erc20Transfers, ...erc721Transfers].map((transfer) => [
+      [...incomingTransfers, ...outgoingTransfers].map((transfer) => [
         transfer.uniqueId,
-        transfer,
+        mapTransfer(transfer),
       ]),
     ).values(),
   );
@@ -287,7 +154,10 @@ export async function POST(req: Request) {
     }
 
     // Wrap Supabase getUser in a retry loop to handle transient network timeouts
-    async function getUserWithRetry(token: any, attempts = 3) {
+    async function getUserWithRetry(
+      token: string | undefined,
+      attempts = 3,
+    ): Promise<any> {
       const base = 500;
       for (let i = 0; i < attempts; i++) {
         try {
@@ -304,9 +174,9 @@ export async function POST(req: Request) {
       }
     }
 
-    const { data: userData, error: userErr } = (await getUserWithRetry(
-      token,
-    )) as any;
+    const { data: userData, error: userErr } = await getUserWithRetry(
+      token ?? undefined,
+    );
 
     if (userErr || !userData?.user) {
       console.error("Failed to get user from supabase server:", userErr);
@@ -316,10 +186,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const authenticatedWalletAddress = normalizeWalletAddress(
-      userData.user.user_metadata?.custom_claims?.address || "",
-    );
-
+    const authenticatedWalletAddress =
+      userData?.user?.user_metadata?.custom_claims?.address;
     if (!authenticatedWalletAddress) {
       console.error("Authenticated user email missing or invalid", {
         user: userData.user,
@@ -340,9 +208,7 @@ export async function POST(req: Request) {
         { status: 403 },
       );
     }
-    console.log("here1");
     const uniqueTransfers = await scanWalletTransfers(requestedWalletAddress);
-    console.log("here2");
     const result = {
       walletAddress: requestedWalletAddress,
       scannedAt: new Date().toISOString(),
