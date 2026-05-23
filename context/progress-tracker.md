@@ -5,11 +5,11 @@ change.
 
 ## Current Phase
 
-- Authentication
+- Wallet Scanning
 
 ## Current Goal
 
-- Implement wallet integration (wagmi + viem), Supabase Web3 authentication, Supabase persistence, and React Query state management
+- Implement Alchemy wallet scanning for the connected authenticated wallet
 
 ## Completed
 
@@ -27,6 +27,9 @@ change.
 - React Query `auth` cache now refreshes immediately after SIWE login
 - Removed SIWE auth flow files and routes: `lib/siwe/*`, `hooks/useSiweLogin.ts`, `components/auth/sign-in-dialog.tsx`, `/api/auth/nonce`, `/api/auth/verify`
 - Removed `siwe` dependency from `package.json`
+- Added `lib/alchemy.ts` with a Mantle Sepolia Alchemy client and wallet scan categories
+- Added `POST /api/wallet/scan` to validate the Supabase session, confirm the connected wallet, scan the last 90 days of `external`, `erc20`, and `erc721` activity, and log the result
+- Wired the scan action to the bottom-nav scan icon and removed the hidden homepage scan trigger
 
 ## In Progress
 
