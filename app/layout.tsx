@@ -21,7 +21,7 @@ const jura = Jura({
 export const metadata: Metadata = {
   title: "Aegis — Wallet Intelligence & Intent Execution",
   description:
-    "Aegis is an AI-powered wallet intelligence and intent execution platform built on Mantle.",
+    "Aegis is an AI-powered wallet intelligence and intent execution platform. It provides users with insights into their wallet activity and enables them to automate actions based on their intentions.",
 };
 
 export default function RootLayout({

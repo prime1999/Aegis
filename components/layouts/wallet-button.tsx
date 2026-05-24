@@ -9,7 +9,7 @@ import { SignInDialog } from "@/components/auth/sign-in-dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuthUser";
 import { encodeWalletAddress } from "@/lib/helperfunctions";
-import { mantleTestnet } from "@/lib/wagmi/chains";
+import { sepolia } from "@/lib/wagmi/chains";
 import { useQueryClient } from "@tanstack/react-query";
 
 export function WalletButton() {
@@ -31,13 +31,13 @@ export function WalletButton() {
     [connectors],
   );
 
-  const ensureMantleSepolia = useCallback(async () => {
+  const ensureSepolia = useCallback(async () => {
     if (!injectedConnector) {
       throw new Error("No injected wallet connector available.");
     }
 
     try {
-      await switchChainAsync({ chainId: mantleTestnet.id });
+      await switchChainAsync({ chainId: sepolia.id });
       return;
     } catch (error) {
       const provider = (await injectedConnector.getProvider()) as
@@ -57,18 +57,18 @@ export function WalletButton() {
         method: "wallet_addEthereumChain",
         params: [
           {
-            chainId: toHex(mantleTestnet.id),
-            chainName: mantleTestnet.name,
-            nativeCurrency: mantleTestnet.nativeCurrency,
-            rpcUrls: mantleTestnet.rpcUrls.default.http,
-            blockExplorerUrls: mantleTestnet.blockExplorers?.default.url
-              ? [mantleTestnet.blockExplorers.default.url]
+            chainId: toHex(sepolia.id),
+            chainName: sepolia.name,
+            nativeCurrency: sepolia.nativeCurrency,
+            rpcUrls: sepolia.rpcUrls.default.http,
+            blockExplorerUrls: sepolia.blockExplorers?.default.url
+              ? [sepolia.blockExplorers.default.url]
               : undefined,
           },
         ],
       });
 
-      await switchChainAsync({ chainId: mantleTestnet.id });
+      await switchChainAsync({ chainId: sepolia.id });
     }
   }, [injectedConnector, switchChainAsync]);
 
@@ -81,14 +81,14 @@ export function WalletButton() {
 
     try {
       await connectAsync({ connector: injectedConnector });
-      await ensureMantleSepolia();
+      await ensureSepolia();
       setIsPopoverOpen(false);
     } catch (error) {
       console.error("Wallet connection error:", error);
     } finally {
       setIsBusy(false);
     }
-  }, [connectAsync, ensureMantleSepolia, injectedConnector]);
+  }, [connectAsync, ensureSepolia, injectedConnector]);
 
   const switchWallet = useCallback(async () => {
     if (!injectedConnector) {
@@ -101,13 +101,13 @@ export function WalletButton() {
       setIsPopoverOpen(false);
       await disconnectAsync();
       await connectAsync({ connector: injectedConnector });
-      await ensureMantleSepolia();
+      await ensureSepolia();
     } catch (error) {
       console.error("Wallet switch error:", error);
     } finally {
       setIsBusy(false);
     }
-  }, [connectAsync, disconnectAsync, ensureMantleSepolia, injectedConnector]);
+  }, [connectAsync, disconnectAsync, ensureSepolia, injectedConnector]);
 
   const disconnectWallet = useCallback(async () => {
     setIsBusy(true);
@@ -126,9 +126,9 @@ export function WalletButton() {
     setIsBusy(true);
 
     try {
-      // Call logout endpoint then clear auth user cache
+      // Call logout endpoint then invalidate auth cache
       await fetch("/api/auth/logout", { method: "POST" });
-      queryClient.setQueryData(["auth", "user"], null);
+      await queryClient.invalidateQueries({ queryKey: ["auth"] });
       setIsPopoverOpen(false);
     } catch (error) {
       console.error("Logout error:", error);
