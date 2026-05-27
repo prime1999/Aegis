@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuthUser";
 import { encodeWalletAddress } from "@/lib/helperfunctions";
 import { sepolia } from "@/lib/wagmi/chains";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase/client";
 
 export function WalletButton() {
   const { address, isConnected } = useAccount();
@@ -127,7 +128,8 @@ export function WalletButton() {
 
     try {
       // Call logout endpoint then invalidate auth cache
-      await fetch("/api/auth/logout", { method: "POST" });
+      //ait fetch("/api/auth/logout", { method: "POST" });
+      await supabase.auth.signOut();
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
       setIsPopoverOpen(false);
     } catch (error) {
