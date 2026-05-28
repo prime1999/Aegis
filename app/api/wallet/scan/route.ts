@@ -10,6 +10,7 @@ import {
   walletScanLookbackDays,
   type WalletScanTransfer,
 } from "@/lib/alchemy";
+import { analyzeWalletScanResults } from "@/app/api/aiWalletAnalyzer/route";
 import { supabaseServer } from "@/lib/supabase/server";
 import { buildErc20ScanInfo } from "@/lib/scan/scanInfoService";
 
@@ -19,12 +20,6 @@ type WalletScanRequestBody = {
 
 function normalizeWalletAddress(value: string) {
   return value.trim().toLowerCase();
-}
-
-function getAuthenticatedWalletAddressFromEmail(email?: string | null) {
-  const normalized = normalizeWalletAddress(email || "");
-  if (!normalized.includes("@")) return "";
-  return normalized.split("@")[0] || "";
 }
 
 async function findBlockByTimestamp(cutoffTime: number) {
@@ -155,16 +150,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // Wrap Supabase getUser in a retry loop to handle transient network timeouts
     async function getUserWithRetry(
       token: string | undefined,
       attempts = 3,
-    ): Promise<any> {
+    ): Promise<Awaited<ReturnType<typeof supabaseServer.auth.getUser>>> {
       const base = 500;
       for (let i = 0; i < attempts; i++) {
         try {
           return await supabaseServer.auth.getUser(token);
-        } catch (err) {
+        } catch (err: unknown) {
           const wait = base * Math.pow(2, i) + Math.floor(Math.random() * 200);
           console.warn(
             `supabase.getUser failed (attempt ${i + 1}), retrying in ${wait}ms`,
@@ -174,6 +168,8 @@ export async function POST(req: Request) {
           await new Promise((r) => setTimeout(r, wait));
         }
       }
+
+      return await supabaseServer.auth.getUser(token);
     }
 
     const { data: userData, error: userErr } = await getUserWithRetry(
@@ -212,6 +208,7 @@ export async function POST(req: Request) {
     }
     const uniqueTransfers = await scanWalletTransfers(requestedWalletAddress);
     const erc20Scans = await buildErc20ScanInfo(uniqueTransfers);
+    const aiAnalysis = await analyzeWalletScanResults(uniqueTransfers);
 
     const result = {
       walletAddress: requestedWalletAddress,
@@ -221,6 +218,7 @@ export async function POST(req: Request) {
       transferCount: uniqueTransfers.length,
       transfers: uniqueTransfers,
       erc20Scans,
+      aiAnalysis,
     };
 
     console.log("Wallet scan result:", result);

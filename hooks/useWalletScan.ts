@@ -16,16 +16,6 @@ function normalizeWalletAddress(value: string) {
   return value.trim().toLowerCase();
 }
 
-function getAuthWalletAddress(email?: string | null) {
-  const normalizedEmail = normalizeWalletAddress(email || "");
-
-  if (!normalizedEmail.includes("@")) {
-    return "";
-  }
-
-  return normalizedEmail.split("@")[0] || "";
-}
-
 export function useWalletScan() {
   const { address, isConnected } = useAccount();
   const { data: user } = useAuth();
@@ -37,7 +27,11 @@ export function useWalletScan() {
       ? normalizeWalletAddress(address)
       : "";
     const authWalletAddress = authenticatedUser
-      ? authenticatedUser?.user_metadata?.custom_claims?.address
+      ? ((
+          authenticatedUser.user_metadata?.custom_claims as
+            | { address?: string }
+            | undefined
+        )?.address ?? "")
       : "";
 
     if (!isConnected || !connectedWalletAddress || !authenticatedUser) {
@@ -82,10 +76,13 @@ export function useWalletScan() {
       }
 
       const payload = (await response.json()) as {
-        scan?: unknown;
+        scan?: {
+          aiAnalysis?: unknown;
+        };
       };
 
       console.log("Wallet scan finished:", payload.scan);
+      console.log("Wallet scan AI analysis:", payload.scan?.aiAnalysis);
     } catch (error) {
       console.error("Wallet scan error:", error);
     } finally {
