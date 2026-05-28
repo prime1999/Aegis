@@ -11,6 +11,7 @@ import {
   type WalletScanTransfer,
 } from "@/lib/alchemy";
 import { supabaseServer } from "@/lib/supabase/server";
+import { buildErc20ScanInfo } from "@/lib/scan/scanInfoService";
 
 type WalletScanRequestBody = {
   walletAddress?: string;
@@ -91,6 +92,7 @@ async function scanWalletTransfers(walletAddress: string) {
     from: transfer.from,
     to: transfer.to,
     contractAddress: transfer.rawContract.address || undefined,
+    asset: transfer.asset || undefined,
     tokenId: transfer.erc721TokenId || transfer.tokenId || undefined,
     value: transfer.value === null ? undefined : String(transfer.value),
   });
@@ -209,6 +211,8 @@ export async function POST(req: Request) {
       );
     }
     const uniqueTransfers = await scanWalletTransfers(requestedWalletAddress);
+    const erc20Scans = await buildErc20ScanInfo(uniqueTransfers);
+
     const result = {
       walletAddress: requestedWalletAddress,
       scannedAt: new Date().toISOString(),
@@ -216,6 +220,7 @@ export async function POST(req: Request) {
       categories: walletScanCategories,
       transferCount: uniqueTransfers.length,
       transfers: uniqueTransfers,
+      erc20Scans,
     };
 
     console.log("Wallet scan result:", result);

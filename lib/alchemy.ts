@@ -22,6 +22,7 @@ export type WalletScanTransfer = {
   from: string;
   to: string | null;
   contractAddress?: string;
+  asset?: string | null;
   tokenId?: string;
   value?: string;
 };
@@ -45,6 +46,13 @@ type RpcBlock = {
     to: string | null;
     value: string;
   }>;
+};
+
+type RpcTransaction = {
+  hash: string;
+  from: string;
+  to: string | null;
+  value: string;
 };
 
 type AlchemyAssetTransfer = {
@@ -131,6 +139,10 @@ export async function fetchBlockByNumberViaRPC(blockNumber: number) {
     toHexBlockNumber(blockNumber),
     true,
   ]);
+}
+
+export async function fetchTransactionByHashViaRPC(txHash: string) {
+  return fetchRpc<RpcTransaction>("eth_getTransactionByHash", [txHash]);
 }
 
 function normalizeAddress(value: string) {
