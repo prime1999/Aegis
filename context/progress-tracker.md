@@ -33,6 +33,8 @@ change.
 - Switched the wallet scan indexer from manual log scanning to Alchemy transfer API pagination via `alchemy_getAssetTransfers`
 - Added retry/backoff around Supabase `auth.getUser` in the wallet scan route
 - Replaced ERC-20 contract metadata reads with Alchemy transfer data plus a local Sepolia `tx.to` protocol registry
+- Wired the wallet scan route to run the AI wallet analyzer immediately after scanning and return `aiAnalysis` with the scan result
+- Added `POST /api/aiWalletAnalyzer` to analyze each scan result entry with Gemini and log the output
 
 ## In Progress
 
@@ -40,7 +42,8 @@ change.
 - Authentication workflow — Supabase Web3 sign-in integration:
   - Read `lib/supabase/config.toml` and keep Supabase sign-in with Web3 enabled.
   - On successful Web3 sign-in, get the session and update the UI immediately.
-- Deeper ERC-20 scan implementation (viem client + `api/scanInfo` + frontend reader)
+  - Deeper ERC-20 scan implementation (viem client + `api/scanInfo` + frontend reader)
+- AI Wallet Analyzer API route implementation (app/api/aiWalletAnalyzer/route.ts) — completed
 
 ## Open Questions
 
