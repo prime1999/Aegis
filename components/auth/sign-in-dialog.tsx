@@ -38,7 +38,7 @@ export function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
     try {
       const { data, error } = await supabase.auth.signInWithWeb3({
         chain: "ethereum",
-        statement: "I accept the Terms of Service at https://example.com/tos",
+        statement: "I accept the Terms of Service at http://localhost:3000",
       });
 
       if (error) {
@@ -59,7 +59,7 @@ export function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="bg-black text-white">
         <DialogHeader>
           <DialogTitle>Sign in</DialogTitle>
           <DialogDescription>
@@ -68,24 +68,32 @@ export function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
         </DialogHeader>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-text-primary">
+          <label className="text-sm font-medium text-white mb-1">
             Username
           </label>
           <Input
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             placeholder="Enter your username"
+            className="focus:outline-none mt-2"
           />
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+        <DialogFooter className="flex flex-col">
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="w-full mt-2 py-2 rounded-md bg-white/90 text-black cursor-pointer duration-500 hover:bg-white/80"
+          >
             {isSubmitting ? "Signing in..." : "Sign in"}
-          </Button>
+          </button>
+          <button
+            onClick={() => onOpenChange(false)}
+            className="w-full bg-red-500 py-2 rounded-md cursor-pointer duration-500 hover:bg-red-600"
+          >
+            Close
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

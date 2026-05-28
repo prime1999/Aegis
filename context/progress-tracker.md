@@ -32,6 +32,7 @@ change.
 - Wired the scan action to the bottom-nav scan icon and removed the hidden homepage scan trigger
 - Switched the wallet scan indexer from manual log scanning to Alchemy transfer API pagination via `alchemy_getAssetTransfers`
 - Added retry/backoff around Supabase `auth.getUser` in the wallet scan route
+- Replaced ERC-20 contract metadata reads with Alchemy transfer data plus a local Sepolia `tx.to` protocol registry
 
 ## In Progress
 
@@ -39,6 +40,11 @@ change.
 - Authentication workflow — Supabase Web3 sign-in integration:
   - Read `lib/supabase/config.toml` and keep Supabase sign-in with Web3 enabled.
   - On successful Web3 sign-in, get the session and update the UI immediately.
+- Deeper ERC-20 scan implementation (viem client + `api/scanInfo` + frontend reader)
+
+## Open Questions
+
+- Which explicit Sepolia `tx.to` addresses should be added to the local protocol registry for known dApps and bridges?
 
 ## Next Up
 
@@ -52,10 +58,6 @@ change.
 - TanStack Query for async state management
 - Both wagmi and React Query providers wrap the app
 - SIWE flow has been removed per updated auth spec; Web3 auth should use Supabase Web3 flow directly
-
-## Open Questions
-
-- [Any unresolved product or technical decisions]
 
 ## Architecture Decisions
 
