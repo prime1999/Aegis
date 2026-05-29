@@ -10,7 +10,6 @@ import {
   walletScanLookbackDays,
   type WalletScanTransfer,
 } from "@/lib/alchemy";
-import { analyzeWalletScanResults } from "@/app/api/aiWalletAnalyzer/route";
 import { supabaseServer } from "@/lib/supabase/server";
 import { buildErc20ScanInfo } from "@/lib/scan/scanInfoService";
 
@@ -208,7 +207,6 @@ export async function POST(req: Request) {
     }
     const uniqueTransfers = await scanWalletTransfers(requestedWalletAddress);
     const erc20Scans = await buildErc20ScanInfo(uniqueTransfers);
-    const aiAnalysis = await analyzeWalletScanResults(uniqueTransfers);
 
     const result = {
       walletAddress: requestedWalletAddress,
@@ -218,7 +216,6 @@ export async function POST(req: Request) {
       transferCount: uniqueTransfers.length,
       transfers: uniqueTransfers,
       erc20Scans,
-      aiAnalysis,
     };
 
     console.log("Wallet scan result:", result);
