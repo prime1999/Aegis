@@ -33,8 +33,12 @@ change.
 - Switched the wallet scan indexer from manual log scanning to Alchemy transfer API pagination via `alchemy_getAssetTransfers`
 - Added retry/backoff around Supabase `auth.getUser` in the wallet scan route
 - Replaced ERC-20 contract metadata reads with Alchemy transfer data plus a local Sepolia `tx.to` protocol registry
-- Wired the wallet scan route to run the AI wallet analyzer immediately after scanning and return `aiAnalysis` with the scan result
 - Added `POST /api/aiWalletAnalyzer` to analyze each scan result entry with Gemini and log the output
+- Separated wallet scan and AI analyzer flows:
+  - Removed AI analyzer execution from `/api/wallet/scan`
+  - Moved wallet scan and AI analyzer calls into `useWalletScan` with React Query mutations
+  - Added separate step state reporting for scan and analyzer phases in bottom-nav
+- Added retry/backoff and fallback model handling in `/api/aiWalletAnalyzer` for transient Gemini `503 UNAVAILABLE` high-demand failures
 
 ## In Progress
 

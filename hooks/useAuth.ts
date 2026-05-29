@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
 
 export interface AuthSession {
   access_token: string;
@@ -10,21 +9,24 @@ export interface AuthSession {
 }
 
 export function useAuth() {
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load session from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem("aegis_session");
-    if (stored) {
-      try {
-        setSession(JSON.parse(stored));
-      } catch (e) {
-        console.warn("Failed to parse stored session", e);
-      }
+  const [session, setSession] = useState<AuthSession | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
     }
-    setIsLoading(false);
-  }, []);
+
+    const stored = localStorage.getItem("aegis_session");
+    if (!stored) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(stored) as AuthSession;
+    } catch (e) {
+      console.warn("Failed to parse stored session", e);
+      return null;
+    }
+  });
+  const [isLoading] = useState(false);
 
   // Save session to localStorage whenever it changes
   useEffect(() => {

@@ -21,25 +21,28 @@ const bottomNavItems = [
 ] as const;
 
 export function BottomNav() {
-  const { scanWallet, isScanning } = useWalletScan();
+  const { scanWallet, isProcessing, scanStep } = useWalletScan();
 
   return (
     <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 sm:bottom-6">
-      <nav className="flex h-16 w-60 items-center gap-2 rounded-4xl bg-bg-subtle p-4">
-        {bottomNavItems.map(({ label, icon: Icon }, index) => (
-          <Button
-            key={label}
-            type="button"
-            variant="ghost"
-            onClick={index === 0 ? scanWallet : undefined}
-            disabled={index === 0 ? isScanning : false}
-            aria-label={label}
-            className="h-11 flex-1 rounded-4xl border border-transparent bg-transparent px-3 text-text-secondary cursor-pointer hover:bg-bg-surface hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Icon className="h-4 w-4" />
-          </Button>
-        ))}
-      </nav>
+      <div className="flex w-60 flex-col items-center gap-2">
+        <p className="text-xs text-text-secondary">{scanStep}</p>
+        <nav className="flex h-16 w-full items-center gap-2 rounded-4xl bg-bg-subtle p-4">
+          {bottomNavItems.map(({ label, icon: Icon }, index) => (
+            <Button
+              key={label}
+              type="button"
+              variant="ghost"
+              onClick={index === 0 ? scanWallet : undefined}
+              disabled={index === 0 ? isProcessing : false}
+              aria-label={label}
+              className="h-11 flex-1 rounded-4xl border border-transparent bg-transparent px-3 text-text-secondary cursor-pointer hover:bg-bg-surface hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Icon className="h-4 w-4" />
+            </Button>
+          ))}
+        </nav>
+      </div>
     </div>
   );
 }

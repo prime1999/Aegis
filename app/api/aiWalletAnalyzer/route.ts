@@ -62,12 +62,137 @@ export type WalletScanAnalysisItem = {
   summary: string;
 };
 
+function getErrorStatus(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+
+  // 1. Check for standard SDK error structures or nested property wrappers
+  const errObj = error as Record<string, any>;
+
+  if (typeof errObj.status === "number") return errObj.status;
+  if (typeof errObj.statusCode === "number") return errObj.statusCode;
+
+  // 2. Parse the nested response body variant {"error": {"code": 503}}
+  if (
+    errObj.error &&
+    typeof errObj.error === "object" &&
+    typeof errObj.error.code === "number"
+  ) {
+    return errObj.error.code;
+  }
+
+  return undefined;
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) return undefined;
+
+  const errObj = error as Record<string, any>;
+  if (typeof errObj.code === "string") return errObj.code;
+
+  // Check nested payload object {"error": {"status": "UNAVAILABLE"}}
+  if (
+    errObj.error &&
+    typeof errObj.error === "object" &&
+    typeof errObj.error.status === "string"
+  ) {
+    return errObj.error.status; // e.g. "UNAVAILABLE"
+  }
+
+  const cause = errObj.cause;
+  if (
+    typeof cause === "object" &&
+    cause !== null &&
+    "code" in cause &&
+    typeof (cause as any).code === "string"
+  ) {
+    return (cause as any).code;
+  }
+
+  return undefined;
+}
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error ?? "");
+}
+
+function isTransientUpstreamError(error: unknown) {
+  const status = getErrorStatus(error);
+  if (status === 503 || status === 504 || status === 429) {
+    return true;
+  }
+
+  const code = getErrorCode(error);
+  if (
+    code === "UND_ERR_CONNECT_TIMEOUT" ||
+    code === "UND_ERR_HEADERS_TIMEOUT" ||
+    code === "ETIMEDOUT" ||
+    code === "ECONNRESET" ||
+    code === "ENETUNREACH" ||
+    code === "EAI_AGAIN" ||
+    code === "UNAVAILABLE" // Added explicitly to catch the code token from the API JSON
+  ) {
+    return true;
+  }
+
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes("fetch failed") ||
+    message.includes("connect timeout") ||
+    message.includes("timed out") ||
+    message.includes("experiencing high demand") || // Added context keyword
+    message.includes("unavailable")
+  );
+}
+
+async function wait(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function generateAnalysisWithRetry(
+  prompt: string,
+  modelName: string,
+  maxAttempts = 3,
+) {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: analysisSchema,
+          temperature: 0.1,
+        },
+      });
+    } catch (error: unknown) {
+      lastError = error;
+      if (!isTransientUpstreamError(error) || attempt === maxAttempts) {
+        break;
+      }
+
+      const backoffMs =
+        500 * 2 ** (attempt - 1) + Math.floor(Math.random() * 250);
+      console.warn(
+        `Gemini ${modelName} unavailable (attempt ${attempt}/${maxAttempts}). Retrying in ${backoffMs}ms.`,
+      );
+      await wait(backoffMs);
+    }
+  }
+
+  throw lastError;
+}
+
 export async function analyzeWalletScanResults(scanResults: unknown[]) {
   if (scanResults.length === 0) {
     return [] as WalletScanAnalysisItem[];
   }
 
-  const modelName = "gemini-2.5-flash";
+  const modelCandidates = ["gemini-2.5-flash", "gemini-2.0-flash"];
 
   const prompt = `You are an expert blockchain forensics analyst. Analyze the provided wallet scan results JSON array.
 For each element, deduce the underlying protocol or ecosystem it belongs to.
@@ -78,15 +203,31 @@ Return an array containing exactly ${scanResults.length} analysis objects matchi
 Array to analyze:
 ${JSON.stringify(scanResults, null, 2)}`;
 
-  const response = await ai.models.generateContent({
-    model: modelName,
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: analysisSchema,
-      temperature: 0.1,
-    },
-  });
+  let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null =
+    null;
+  let finalError: unknown;
+
+  for (const modelName of modelCandidates) {
+    try {
+      response = await generateAnalysisWithRetry(prompt, modelName, 3);
+      break;
+    } catch (error: unknown) {
+      finalError = error;
+      const status = getErrorStatus(error);
+
+      if (!isTransientUpstreamError(error)) {
+        throw error;
+      }
+
+      console.warn(
+        `Model ${modelName} temporarily unavailable after retries (status: ${status ?? "n/a"}). Trying fallback model.`,
+      );
+    }
+  }
+
+  if (!response) {
+    throw finalError ?? new Error("Failed to get AI analysis response");
+  }
 
   if (!response.text) {
     throw new Error("Empty response received from Gemini API");
@@ -122,9 +263,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ analysis });
   } catch (err: unknown) {
     console.error("aiWalletAnalyzer error:", err);
+
+    const status = getErrorStatus(err) ?? 500;
+    if (status === 503 || status === 504 || isTransientUpstreamError(err)) {
+      return NextResponse.json(
+        {
+          error:
+            "AI analyzer is temporarily unavailable due to upstream network/load conditions. Please try again shortly.",
+        },
+        { status: 503 },
+      );
+    }
+
     const message =
       err instanceof Error ? err.message : "internal server error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
