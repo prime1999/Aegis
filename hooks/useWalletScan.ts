@@ -1,11 +1,15 @@
 "use client";
 
 import { useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 
 import { useAuth } from "@/hooks/useAuthUser";
 import { supabase } from "@/lib/supabase/client";
+
+export const walletAnalysisQueryKey = ["wallet-analysis"] as const;
+
+type AnalysisCategory = "external" | "erc20" | "erc721";
 
 type AuthUser = {
   id: string;
@@ -58,6 +62,29 @@ type WalletAnalyzerResponse = {
   error?: string;
 };
 
+export type WalletAnalysisEntry = {
+  category: AnalysisCategory;
+  summary: string;
+  confidence: string;
+  evidence: string;
+  transactionHash: string;
+  timestamp: string;
+  asset: string;
+  direction: WalletScanTransfer["direction"];
+  protocols: Array<{
+    name: string;
+    confidence: string;
+    evidence: string;
+  }>;
+};
+
+export type WalletAnalysisSnapshot = {
+  walletAddress: string;
+  scannedAt: string;
+  transferCount: number;
+  items: WalletAnalysisEntry[];
+};
+
 function normalizeWalletAddress(value: string) {
   return value.trim().toLowerCase();
 }
@@ -65,6 +92,7 @@ function normalizeWalletAddress(value: string) {
 export function useWalletScan() {
   const { address, isConnected } = useAccount();
   const { data: user } = useAuth();
+  const queryClient = useQueryClient();
 
   const scanMutation = useMutation({
     mutationFn: async ({
@@ -171,6 +199,37 @@ export function useWalletScan() {
         });
       }
 
+      const snapshot: WalletAnalysisSnapshot = {
+        walletAddress: scanResult.walletAddress,
+        scannedAt: scanResult.scannedAt,
+        transferCount: scanResult.transferCount,
+        items: scanResult.transfers.map((transfer, index) => {
+          const analysis = aiAnalysis[index];
+          const protocolNames = analysis?.protocols.map(
+            (protocol) => protocol.name,
+          );
+
+          return {
+            category: transfer.category as AnalysisCategory,
+            summary:
+              analysis?.summary ||
+              `AI analysis was not returned for this ${transfer.category} transfer.`,
+            confidence: analysis?.protocols[0]?.confidence ?? "unrated",
+            evidence:
+              protocolNames && protocolNames.length > 0
+                ? protocolNames.join(", ")
+                : transfer.contractAddress || transfer.asset || transfer.txHash,
+            transactionHash: transfer.txHash,
+            timestamp: transfer.blockTimestamp,
+            asset: transfer.asset || transfer.category,
+            direction: transfer.direction,
+            protocols: analysis?.protocols ?? [],
+          };
+        }),
+      };
+
+      queryClient.setQueryData(walletAnalysisQueryKey, snapshot);
+
       console.log("Wallet scan AI analysis:", aiAnalysis);
       console.log("Wallet scan + AI pipeline result:", {
         scan: scanResult,
@@ -179,7 +238,7 @@ export function useWalletScan() {
     } catch (error) {
       console.error("Wallet scan error:", error);
     }
-  }, [address, isConnected, user, scanMutation, analyzerMutation]);
+  }, [address, isConnected, user, scanMutation, analyzerMutation, queryClient]);
 
   const isScanning = scanMutation.isPending;
   const isAnalyzing = analyzerMutation.isPending;

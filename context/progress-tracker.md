@@ -39,6 +39,9 @@ change.
   - Moved wallet scan and AI analyzer calls into `useWalletScan` with React Query mutations
   - Added separate step state reporting for scan and analyzer phases in bottom-nav
 - Added retry/backoff and fallback model handling in `/api/aiWalletAnalyzer` for transient Gemini `503 UNAVAILABLE` high-demand failures
+- Implemented wallet analysis UI sidebar beside the AI image with GSAP entrance and animated category results
+- Made the wallet analysis sidebar internally scrollable and animate result cards as they enter the scroll viewport with GSAP ScrollTrigger
+- Wired the wallet analysis sidebar to the real wallet scan + AI analysis results via shared React Query cache
 
 ## In Progress
 
@@ -81,3 +84,4 @@ change.
 - Layout system work started - navbar, sidebar, bottom nav, and page shell are being added
 - Layout system completed - responsive shell components now compile cleanly
 - Homepage simplified to navbar, bottom nav, and the generalAI image
+- Wallet analysis sidebar is now rendered beside the homepage AI image with glassmorphism styling and GSAP animations
