@@ -55,6 +55,8 @@ type WalletScanAnalysisItem = {
     evidence: string;
   }>;
   summary: string;
+  symbol: string;
+  ecosystem?: string;
 };
 
 type WalletAnalyzerResponse = {
@@ -71,6 +73,7 @@ export type WalletAnalysisEntry = {
   timestamp: string;
   asset: string;
   direction: WalletScanTransfer["direction"];
+  symbol: string;
   protocols: Array<{
     name: string;
     confidence: string;
@@ -215,6 +218,7 @@ export function useWalletScan() {
               analysis?.summary ||
               `AI analysis was not returned for this ${transfer.category} transfer.`,
             confidence: analysis?.protocols[0]?.confidence ?? "unrated",
+            symbol: analysis?.symbol,
             evidence:
               protocolNames && protocolNames.length > 0
                 ? protocolNames.join(", ")

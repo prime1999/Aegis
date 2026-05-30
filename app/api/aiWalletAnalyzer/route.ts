@@ -17,6 +17,16 @@ const analysisSchema = {
       items: {
         type: "OBJECT",
         properties: {
+          ecosystem: {
+            type: "STRING",
+            description:
+              "The blockchain ecosystem the transaction belongs to (e.g., Ethereum, Mantle, Solana).",
+          },
+          symbol: {
+            type: "STRING",
+            description:
+              "The token symbol associated with the transaction (e.g., ETH, MNT, SOL, USDC).",
+          },
           protocols: {
             type: "ARRAY",
             items: {
@@ -25,16 +35,16 @@ const analysisSchema = {
                 name: {
                   type: "STRING",
                   description:
-                    "Name of the protocol or ecosystem (e.g., 'Mantle Network', 'Uniswap')",
+                    "Name of the protocol or ecosystem (e.g., Mantle Network, Uniswap).",
                 },
                 confidence: {
                   type: "STRING",
-                  description: "High, Medium, or Low",
+                  description: "High, Medium, or Low.",
                 },
                 evidence: {
                   type: "STRING",
                   description:
-                    "On-chain data or naming pattern that points to this conclusion",
+                    "On-chain data or naming pattern that supports this conclusion.",
                 },
               },
               required: ["name", "confidence", "evidence"],
@@ -46,7 +56,7 @@ const analysisSchema = {
               "Short plain-text summary of findings for this specific transaction.",
           },
         },
-        required: ["protocols", "summary"],
+        required: ["ecosystem", "symbol", "protocols", "summary"],
       },
     },
   },
@@ -195,7 +205,8 @@ export async function analyzeWalletScanResults(scanResults: unknown[]) {
   const modelCandidates = ["gemini-2.5-flash", "gemini-2.0-flash"];
 
   const prompt = `You are an expert blockchain forensics analyst. Analyze the provided wallet scan results JSON array.
-For each element, deduce the underlying protocol or ecosystem it belongs to.
+For each element, deduce the underlying protocol or ecosystem it belongs to and also add there an object of
+symbol that will hold the symbol of the token like MNT, ETH and so on.
 Pay close attention to testnet naming patterns (e.g., 'SepoliaMNT' implies the Mantle Network ecosystem).
 
 Return an array containing exactly ${scanResults.length} analysis objects matching the order of the input.

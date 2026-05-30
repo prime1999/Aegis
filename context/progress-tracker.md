@@ -51,6 +51,7 @@ change.
   - On successful Web3 sign-in, get the session and update the UI immediately.
   - Deeper ERC-20 scan implementation (viem client + `api/scanInfo` + frontend reader)
 - AI Wallet Analyzer API route implementation (app/api/aiWalletAnalyzer/route.ts) — completed
+- AI analyzer updates API route (`app/api/updates/route.ts`) — in progress: add server route that accepts a comma-separated list of symbols (query or body), calls CryptoCompare, and logs the response
 
 ## Open Questions
 

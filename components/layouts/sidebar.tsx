@@ -39,6 +39,19 @@ export function Sidebar({ className }: SidebarProps) {
 
   const analysisItems = data?.items ?? [];
 
+  const handleGetUpdate = async (item: WalletAnalysisEntry) => {
+    try {
+      const response = await fetch(
+        `/api/updates?symbols=${encodeURIComponent(item.symbol)}`,
+      );
+      const payload = await response.json().catch(() => null);
+
+      console.log("Wallet analysis update response:", payload);
+    } catch (error) {
+      console.error("Wallet analysis update request failed:", error);
+    }
+  };
+
   useEffect(() => {
     const ctx = gsap.context(() => {
       if (!containerRef.current) {
@@ -141,7 +154,11 @@ export function Sidebar({ className }: SidebarProps) {
                         <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-primary">
                           {item.category} {item.direction}
                         </h3>
-                        <button className="shrink-0 rounded-full border bg-black px-2.5 py-1 text-[11px] font-medium capitalize cursor-pointer duration-500 text-white hover:bg-black/80">
+                        <button
+                          type="button"
+                          onClick={() => handleGetUpdate(item)}
+                          className="shrink-0 rounded-full border bg-black px-2.5 py-1 text-[11px] font-medium capitalize cursor-pointer duration-500 text-white hover:bg-black/80"
+                        >
                           Get Update
                         </button>
                       </div>
