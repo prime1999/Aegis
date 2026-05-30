@@ -17,4 +17,4 @@ Do not attach any other functionalities
 - new components compile without TypeScript errors
 - no lint errors
 - Each result is checked and the AI analyzes the all result in the array
-- Alo the layout is responsive on all screen sizes
+- Also the layout is responsive on all screen sizes
