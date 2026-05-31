@@ -3,6 +3,7 @@ import Image from "next/image";
 import { BottomNav } from "@/components/layouts/bottom-nav";
 import { Navbar } from "@/components/layouts/navbar";
 import { Sidebar } from "@/components/layouts/sidebar";
+import { UpdatesSidebar } from "@/components/updatesSidebar";
 
 const Page = () => {
   return (
@@ -20,6 +21,7 @@ const Page = () => {
             className="h-auto w-full max-w-76 object-contain sm:max-w-88 lg:max-w-104"
           />
         </div>
+        <UpdatesSidebar className="lg:sticky lg:top-24" />
       </main>
 
       <BottomNav />

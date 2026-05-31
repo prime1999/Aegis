@@ -46,6 +46,9 @@ change.
 ## In Progress
 
 - Wallet connection system (Ethereum Sepolia connection, popover UI, address encoding)
+- Updates UI sidebar implementation for analyzer news results
+  - Dialog now includes a sticky "Ask AI to translate" CTA at the bottom
+  - Sidebar now stays hidden until wallet analysis data and ready updates are available
 - Authentication workflow — Supabase Web3 sign-in integration:
   - Read `lib/supabase/config.toml` and keep Supabase sign-in with Web3 enabled.
   - On successful Web3 sign-in, get the session and update the UI immediately.
