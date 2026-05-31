@@ -1,8 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import gsap from "gsap";
 import { Newspaper, Sparkles } from "lucide-react";
 
@@ -15,9 +15,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  type WalletAnalysisSnapshot,
-  walletAnalysisQueryKey,
-} from "@/hooks/useWalletScan";
+  type UpdateFeedSnapshot,
+  updateFeedQueryKey,
+} from "@/lib/updates/feed";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -39,12 +39,13 @@ type CryptoCompareUpdate = {
   imageurl?: string;
 };
 
-type UpdatesApiResponse = {
-  data?: {
-    Data?: CryptoCompareUpdate[];
-  };
+type TranslateApiResponse = {
+  translation?: string;
   error?: string;
 };
+
+const TRANSLATION_STALE_TIME_MS = 15 * 60 * 1000;
+const TRANSLATION_GC_TIME_MS = 60 * 60 * 1000;
 
 function formatPublishedOn(publishedOn?: number) {
   if (!publishedOn) {
@@ -72,55 +73,75 @@ function getPreviewText(text?: string) {
 export function UpdatesSidebar({ className }: UpdatesSidebarProps) {
   const [selectedUpdate, setSelectedUpdate] =
     useState<CryptoCompareUpdate | null>(null);
+  const [translationResult, setTranslationResult] = useState("");
+  const [translationDialogOpen, setTranslationDialogOpen] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const containerRef = useRef<HTMLElement | null>(null);
+  const queryClient = useQueryClient();
 
-  const { data: analysis } = useQuery<WalletAnalysisSnapshot | null>({
-    queryKey: walletAnalysisQueryKey,
+  const { data: feed } = useQuery<UpdateFeedSnapshot | null>({
+    queryKey: updateFeedQueryKey,
     enabled: false,
     staleTime: Infinity,
     initialData: null,
   });
 
-  const symbols = useMemo(() => {
-    const uniqueSymbols = new Set(
-      (analysis?.items ?? [])
-        .map((item) => item.symbol?.trim())
-        .filter((symbol): symbol is string => Boolean(symbol)),
-    );
+  const updates = feed?.updates ?? [];
+  const hasReadyUpdates = Boolean(feed && updates.length > 0);
 
-    return Array.from(uniqueSymbols);
-  }, [analysis?.items]);
+  const handleTranslate = async () => {
+    if (!selectedUpdate?.body || isTranslating) {
+      return;
+    }
 
-  const symbolKey = symbols.join(",");
+    setIsTranslating(true);
 
-  const { data: updates = [], isFetching } = useQuery<CryptoCompareUpdate[]>({
-    queryKey: ["updates", symbolKey],
-    enabled: symbols.length > 0,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/updates?symbols=${encodeURIComponent(symbolKey)}`,
+    try {
+      const translation = await queryClient.fetchQuery<string>({
+        queryKey: ["ai-translate", selectedUpdate.body],
+        staleTime: TRANSLATION_STALE_TIME_MS,
+        gcTime: TRANSLATION_GC_TIME_MS,
+        queryFn: async () => {
+          const resp = await fetch("/api/AI-translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: selectedUpdate.body }),
+          });
+
+          const payload = (await resp
+            .json()
+            .catch(() => null)) as TranslateApiResponse | null;
+
+          if (!resp.ok) {
+            throw new Error(
+              payload?.error || resp.statusText || "Translation failed",
+            );
+          }
+
+          if (!payload?.translation) {
+            throw new Error("AI returned no translation.");
+          }
+
+          return payload.translation;
+        },
+      });
+
+      setTranslationResult(translation);
+      setTranslationDialogOpen(true);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Translation request failed";
+      setTranslationResult(
+        `Unable to translate this update right now. ${message}`,
       );
-
-      const payload = (await response
-        .json()
-        .catch(() => null)) as UpdatesApiResponse | null;
-
-      if (!response.ok) {
-        throw new Error(payload?.error || "Updates request failed");
-      }
-
-      const rawUpdates = payload?.data?.Data;
-
-      return Array.isArray(rawUpdates) ? rawUpdates : [];
-    },
-  });
-
-  const hasWalletAnalysis = symbols.length > 0;
-  const hasReadyUpdates = updates.length > 0;
+      setTranslationDialogOpen(true);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   useLayoutEffect(() => {
-    if (!hasWalletAnalysis || isFetching || !hasReadyUpdates) {
+    if (!hasReadyUpdates) {
       return;
     }
 
@@ -169,15 +190,9 @@ export function UpdatesSidebar({ className }: UpdatesSidebarProps) {
     }, containerRef);
 
     return () => ctx.revert();
-  }, [
-    hasReadyUpdates,
-    hasWalletAnalysis,
-    isFetching,
-    updates.length,
-    symbols.length,
-  ]);
+  }, [feed?.fetchedAt, hasReadyUpdates, updates.length]);
 
-  if (!hasWalletAnalysis || isFetching || !hasReadyUpdates) {
+  if (!hasReadyUpdates) {
     return null;
   }
 
@@ -205,65 +220,50 @@ export function UpdatesSidebar({ className }: UpdatesSidebarProps) {
 
         <div className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.35)_transparent]">
           <ul className="space-y-3 pb-2">
-            {symbols.length === 0 ? (
-              <li className="rounded-[1.4rem] border border-dashed border-white/10 bg-bg-base/25 p-5 text-sm leading-6 text-text-secondary backdrop-blur-xl">
-                Run the wallet scan and AI analysis to populate this panel with
-                the latest updates for the detected symbols.
-              </li>
-            ) : updates.length > 0 ? (
-              updates.map((update, index) => (
-                <li
-                  key={`${update.title ?? "update"}-${index}`}
-                  data-update-card
-                  className="rounded-[1.4rem] border border-white/10 bg-bg-base/40 p-2 backdrop-blur-xl"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-text-primary shadow-inner shadow-black/10">
-                      <Newspaper className="h-5 w-5" />
-                    </div>
+            {updates.map((update, index) => (
+              <li
+                key={`${update.title ?? "update"}-${index}`}
+                data-update-card
+                className="rounded-[1.4rem] border border-white/10 bg-bg-base/40 p-2 backdrop-blur-xl"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-text-primary shadow-inner shadow-black/10">
+                    <Newspaper className="h-5 w-5" />
+                  </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-primary">
-                            {update.title || "Market update"}
-                          </h3>
-                          <p className="mt-1 h-12.5 text-[11px] uppercase tracking-[0.18em] text-text-secondary/80">
-                            {update.source_info?.name ||
-                              update.source ||
-                              "CryptoCompare"}
-                          </p>
-                        </div>
-
-                        <Button
-                          type="button"
-                          onClick={() => setSelectedUpdate(update)}
-                          className="shrink-0 rounded-full border bg-black px-2.5 py-1 text-[11px] font-medium capitalize cursor-pointer duration-500 text-white hover:bg-black/80"
-                        >
-                          View Update
-                        </Button>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-text-primary">
+                          {update.title || "Market update"}
+                        </h3>
+                        <p className="mt-1 h-12.5 text-[11px] uppercase tracking-[0.18em] text-text-secondary/80">
+                          {update.source_info?.name ||
+                            update.source ||
+                            "CryptoCompare"}
+                        </p>
                       </div>
 
-                      <p className="text-xs text-text-secondary">
-                        {getPreviewText(update.body)}
-                      </p>
-
-                      <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-text-secondary/80">
-                        {formatPublishedOn(update.published_on)}
-                      </p>
+                      <Button
+                        type="button"
+                        onClick={() => setSelectedUpdate(update)}
+                        className="shrink-0 rounded-full border bg-black px-2.5 py-1 text-[11px] font-medium capitalize cursor-pointer duration-500 text-white hover:bg-black/80"
+                      >
+                        View Update
+                      </Button>
                     </div>
+
+                    <p className="text-xs text-text-secondary">
+                      {getPreviewText(update.body)}
+                    </p>
+
+                    <p className="mt-3 text-[11px] uppercase tracking-[0.22em] text-text-secondary/80">
+                      {formatPublishedOn(update.published_on)}
+                    </p>
                   </div>
-                </li>
-              ))
-            ) : isFetching ? (
-              <li className="rounded-[1.4rem] border border-dashed border-white/10 bg-bg-base/25 p-5 text-sm leading-6 text-text-secondary backdrop-blur-xl">
-                Loading updates for the detected symbols.
+                </div>
               </li>
-            ) : (
-              <li className="rounded-[1.4rem] border border-dashed border-white/10 bg-bg-base/25 p-5 text-sm leading-6 text-text-secondary backdrop-blur-xl">
-                No updates were returned for the current wallet analysis.
-              </li>
-            )}
+            ))}
           </ul>
         </div>
       </aside>
@@ -323,13 +323,37 @@ export function UpdatesSidebar({ className }: UpdatesSidebarProps) {
             <div className="sticky bottom-0 -mx-4 -mb-8 mt-6 px-2 py-2 w-full">
               <Button
                 type="button"
+                onClick={handleTranslate}
+                disabled={isTranslating || !selectedUpdate?.body}
                 className="flex items-center justify-center w-8/12 ml-14 rounded-full border border-white/10 bg-black/70 px-4 py-3 text-sm font-medium text-white backdrop-blur-xl cursor-pointer duration-500 hover:bg-black/80"
               >
-                <Sparkles className="mr-2 h-4 w-4" />
-                Ask AI to translate
+                <Sparkles
+                  className={`mr-2 h-4 w-4 ${isTranslating ? "animate-pulse" : ""}`}
+                />
+                {isTranslating ? "Translating..." : "Ask AI to translate"}
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={translationDialogOpen}
+        onOpenChange={setTranslationDialogOpen}
+      >
+        <DialogContent className="max-w-2xl bg-bg-base text-text-primary shadow-[0_28px_90px_rgba(9,15,30,0.16)]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-jura font-semibold">
+              AI Translation
+            </DialogTitle>
+            <DialogDescription className="text-xs text-text-secondary">
+              Simple explanation and potential market impact.
+            </DialogDescription>
+          </DialogHeader>
+
+          <p className="max-h-[60vh] overflow-auto whitespace-pre-wrap text-sm leading-6 text-text-primary">
+            {translationResult || "No translation available."}
+          </p>
         </DialogContent>
       </Dialog>
     </>

@@ -49,6 +49,8 @@ change.
 - Updates UI sidebar implementation for analyzer news results
   - Dialog now includes a sticky "Ask AI to translate" CTA at the bottom
   - Sidebar now stays hidden until wallet analysis data and ready updates are available
+  - Get Update now populates a shared feed cache, so the updates sidebar only appears after a specific result is fetched
+- AI update translate implementation (API route and UI wiring)
 - Authentication workflow — Supabase Web3 sign-in integration:
   - Read `lib/supabase/config.toml` and keep Supabase sign-in with Web3 enabled.
   - On successful Web3 sign-in, get the session and update the UI immediately.
