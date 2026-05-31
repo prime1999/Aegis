@@ -134,6 +134,10 @@ export function Sidebar({ className }: SidebarProps) {
     return () => ctx.revert();
   }, [analysisItems.length]);
 
+  if (analysisItems.length === 0) {
+    return null;
+  }
+
   return (
     <aside
       ref={containerRef}
