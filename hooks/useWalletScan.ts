@@ -260,7 +260,7 @@ export function useWalletScan() {
           ? "AI analysis failed"
           : scanMutation.isSuccess && analyzerMutation.isSuccess
             ? "Scan and analysis completed"
-            : "Idle";
+            : "Start Scan";
 
   return {
     scanWallet,

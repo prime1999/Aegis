@@ -42,6 +42,12 @@ change.
 - Implemented wallet analysis UI sidebar beside the AI image with GSAP entrance and animated category results
 - Made the wallet analysis sidebar internally scrollable and animate result cards as they enter the scroll viewport with GSAP ScrollTrigger
 - Wired the wallet analysis sidebar to the real wallet scan + AI analysis results via shared React Query cache
+- Added mobile-only sheet wrappers for the wallet analysis and update sidebars with responsive open buttons
+- Mounted the desktop updates sidebar beside the AI image on the homepage shell
+- Refined the mobile sheet surfaces with glassmorphism backgrounds and translucent cards
+- Moved the mobile sidebar trigger buttons to a fixed top-left position below the navbar
+- Separated the mobile analysis and update triggers into top-left and top-right positions
+- Closed the mobile analysis sheet after a successful Get Update action populates the update feed
 
 ## In Progress
 
