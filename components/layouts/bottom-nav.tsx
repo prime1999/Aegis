@@ -24,24 +24,31 @@ export function BottomNav() {
   const { scanWallet, isProcessing, scanStep } = useWalletScan();
 
   return (
-    <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 sm:bottom-6">
-      <div className="flex w-60 flex-col items-center gap-2">
-        <p className="text-xs text-text-secondary">{scanStep}</p>
-        <nav className="flex h-16 w-full items-center gap-2 rounded-4xl bg-bg-subtle p-4">
-          {bottomNavItems.map(({ label, icon: Icon }, index) => (
+    <div className="fixed inset-x-0 bottom-4 z-40 px-4 flex flex-col items-center justify-center sm:bottom-6">
+      <div className="flex justify-center">
+        <div className="flex w-60 flex-col items-center gap-2">
+          <p className="text-sm text-black font-semiold bg-white/20 p-2 rounded-full">
+            {scanStep}
+          </p>
+          <nav className="flex h-16 w-full items-center gap-2 rounded-4xl bg-black/40 p-4">
             <Button
-              key={label}
               type="button"
               variant="ghost"
-              onClick={index === 0 ? scanWallet : undefined}
-              disabled={index === 0 ? isProcessing : false}
-              aria-label={label}
-              className="h-11 flex-1 rounded-4xl border border-transparent bg-transparent px-3 text-text-secondary cursor-pointer hover:bg-bg-surface hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={scanWallet}
+              disabled={isProcessing}
+              className="h-11 flex-1 rounded-full text-white bg-black px-3 cursor-pointer hover:bg-black/70 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Icon className="h-4 w-4" />
+              <ScanEye className="h-12 w-12" />
             </Button>
-          ))}
-        </nav>
+          </nav>
+        </div>
+      </div>
+      <div className="flex w-full items-center gap-3 pt-2 mt-2">
+        <hr className="flex-1 border-border-default" />
+        <h6 className="font-jura text-lg font-bold text-text-primary">
+          priime
+        </h6>
+        <hr className="flex-1 border-border-default" />
       </div>
     </div>
   );

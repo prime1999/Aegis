@@ -21,6 +21,7 @@ import {
 
 type SidebarProps = {
   className?: string;
+  onUpdateFetched?: () => void;
 };
 
 const categoryIcons = {
@@ -31,7 +32,7 @@ const categoryIcons = {
 
 gsap.registerPlugin(ScrollTrigger);
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, onUpdateFetched }: SidebarProps) {
   const containerRef = useRef<HTMLElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const resultRefs = useRef<Array<HTMLLIElement | null>>([]);
@@ -75,6 +76,7 @@ export function Sidebar({ className }: SidebarProps) {
       };
 
       queryClient.setQueryData(updateFeedQueryKey, feed);
+      onUpdateFetched?.();
     } catch (error) {
       console.error("Wallet analysis update request failed:", error);
     }

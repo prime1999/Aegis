@@ -3,13 +3,16 @@ import Image from "next/image";
 import { BottomNav } from "@/components/layouts/bottom-nav";
 import { Navbar } from "@/components/layouts/navbar";
 import { Sidebar } from "@/components/layouts/sidebar";
+import { UpdatesSidebar } from "@/components/updatesSidebar";
+import { MobileSidebar } from "@/components/MobileSidebar";
+import { MobileUpdatesSidebar } from "@/components/MobileUpdatesSidebar";
 
 const Page = () => {
   return (
     <div className="min-h-dvh bg-bg-base text-text-primary">
       <Navbar />
       <main className="mx-auto grid min-h-[calc(100dvh-4rem)] w-full max-w-7xl gap-6 px-4 pb-28 pt-8 sm:px-6 lg:grid-cols-3 lg:items-center lg:px-8">
-        <div className="lg:col-start-1">
+        <div className="hidden lg:block lg:col-start-1">
           <Sidebar className="lg:sticky lg:top-24" />
         </div>
         <div className="flex min-h-72 items-center justify-center lg:col-start-2">
@@ -22,7 +25,18 @@ const Page = () => {
             className="h-auto w-full max-w-76 object-contain sm:max-w-88 lg:max-w-104"
           />
         </div>
+        <div className="hidden lg:block lg:col-start-3">
+          <UpdatesSidebar className="lg:sticky lg:top-24" />
+        </div>
       </main>
+
+      <div className="fixed left-4 top-20 z-40 w-52 sm:left-6 lg:hidden">
+        <MobileSidebar />
+      </div>
+
+      <div className="fixed right-4 top-20 z-40 w-52 sm:right-6 lg:hidden">
+        <MobileUpdatesSidebar />
+      </div>
 
       <BottomNav />
     </div>
