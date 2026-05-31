@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import gsap from "gsap";
 import ScrollTrigger from "gsap/ScrollTrigger";
 import { ArrowLeftRight, BadgeCheck, Coins } from "lucide-react";
@@ -13,6 +13,11 @@ import {
   type WalletAnalysisSnapshot,
   walletAnalysisQueryKey,
 } from "@/hooks/useWalletScan";
+import {
+  type UpdateFeedSnapshot,
+  type UpdatesApiResponse,
+  updateFeedQueryKey,
+} from "@/lib/updates/feed";
 
 type SidebarProps = {
   className?: string;
@@ -30,6 +35,7 @@ export function Sidebar({ className }: SidebarProps) {
   const containerRef = useRef<HTMLElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const resultRefs = useRef<Array<HTMLLIElement | null>>([]);
+  const queryClient = useQueryClient();
   const { data } = useQuery<WalletAnalysisSnapshot | null>({
     queryKey: walletAnalysisQueryKey,
     enabled: false,
@@ -44,9 +50,31 @@ export function Sidebar({ className }: SidebarProps) {
       const response = await fetch(
         `/api/updates?symbols=${encodeURIComponent(item.symbol)}`,
       );
-      const payload = await response.json().catch(() => null);
+      const payload = (await response
+        .json()
+        .catch(() => null)) as UpdatesApiResponse | null;
 
-      console.log("Wallet analysis update response:", payload);
+      if (!response.ok) {
+        console.error("Wallet analysis update request failed:", payload);
+        return;
+      }
+
+      const updates = Array.isArray(payload?.data?.Data)
+        ? payload.data.Data
+        : [];
+
+      if (updates.length === 0) {
+        console.warn("Wallet analysis update request returned no updates.");
+        return;
+      }
+
+      const feed: UpdateFeedSnapshot = {
+        symbol: item.symbol,
+        updates,
+        fetchedAt: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData(updateFeedQueryKey, feed);
     } catch (error) {
       console.error("Wallet analysis update request failed:", error);
     }
